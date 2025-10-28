@@ -7,9 +7,8 @@ import ru.yandex.practicum.catsgram.exception.NotFoundException;
 import ru.yandex.practicum.catsgram.model.Post;
 
 import java.time.Instant;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -17,8 +16,43 @@ public class PostService {
     private final Map<Long, Post> posts = new HashMap<>();
     private final UserService userService;
 
+    public Collection<Post> findAll(Integer from, Integer size, SortOrder sortOrder) {
+        // Значения по умолчанию
+        if (from == null) from = 0;
+        if (size == null) size = 10;
+        if (sortOrder == null) sortOrder = SortOrder.DESCENDING;
+
+        // Проверка корректности параметров
+        if (from < 0) {
+            throw new ConditionsNotMetException("Параметр 'from' не может быть отрицательным");
+        }
+        if (size <= 0) {
+            throw new ConditionsNotMetException("Параметр 'size' должен быть положительным");
+        }
+
+        List<Post> sortedPosts = new ArrayList<>(posts.values());
+
+        // Сортировка по дате
+        if (sortOrder == SortOrder.ASCENDING) {
+            sortedPosts.sort(Comparator.comparing(Post::getPostDate));
+        } else {
+            sortedPosts.sort(Comparator.comparing(Post::getPostDate).reversed());
+        }
+
+        // Пагинация
+        return sortedPosts.stream()
+                .skip(from)
+                .limit(size)
+                .collect(Collectors.toList());
+    }
+
+    // Старый метод оставляем для обратной совместимости
     public Collection<Post> findAll() {
-        return posts.values();
+        return findAll(0, 10, SortOrder.DESCENDING);
+    }
+
+    public Optional<Post> findPostById(Long postId) {
+        return Optional.ofNullable(posts.get(postId));
     }
 
     public Post create(Post post) {
